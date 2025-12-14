@@ -43,11 +43,11 @@ restore_file() {
             local label="${entry#*:}" 
             label="${label#*TIMESTAMP: }"
             
-            log_info_tab_spaced "[${count}] $label"
+            log_info "[${count}] $label"
             LINE_MAP[$count]=$line_num
         done
 
-        log_info_tab_spaced "[0] Skip this file"
+        log_info "[0] Skip this file"
         echo ""
         read -p "Select a version [0-$count]: " choice
 
@@ -87,7 +87,7 @@ restore_file() {
             log_success "✔ Restored $target"
             break # Exit loop for this loop
         else
-            log_info_tab_spaced "Not restored. You can select another version."
+            log_info "Not restored. You can select another version."
             # Loop continues, re-displaying the list
         fi
     done
@@ -99,9 +99,9 @@ done
 
 echo -e "\n${YELLOW}------------------------------------------------------------${NC}"
 log_warn "Package Cleanup Advice"
-log_info_tab_spaced "The optimizer may have installed specific drivers. Below are the packages"
-log_info_tab_spaced "currently installed on your system that match our management list."
-log_info_tab_spaced "Please review and uninstall any you no longer need manually."
+log_info "The optimizer may have installed specific drivers. Below are the packages"
+log_info "currently installed on your system that match our management list."
+log_info "Please review and uninstall any you no longer need manually."
 log_header "(Command: pacman -Rns <package_name>)\n"
 
 FOUND_PKGS=0
@@ -113,7 +113,7 @@ for pkg in "${MANAGED_PACKAGES[@]}"; do
 done
 
 if [ $FOUND_PKGS -eq 0 ]; then
-    log_info_tab_spaced "(No managed packages detected)"
+    log_info "(No managed packages detected)"
 fi
 
 echo -e "\n${YELLOW}------------------------------------------------------------${NC}"
@@ -130,6 +130,6 @@ if [[ "$confirm" =~ ^[Yy]$ || -z "$confirm" ]]; then
         log_error ":: Rebuild Failed."
     fi
 else
-    log_info_tab_spaced "Skipping rebuild."
-    log_info_tab_spaced "Remember to run 'sudo limine-mkinitcpio' manually if you changed configs."
+    log_info "Skipping rebuild."
+    log_info "Remember to run 'sudo limine-mkinitcpio' manually if you changed configs."
 fi
