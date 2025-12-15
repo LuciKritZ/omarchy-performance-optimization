@@ -1,33 +1,19 @@
 #!/bin/bash
 
 configure_bootloader() {
+    local gpu_args="$1"
+    local memory_args="$2"
+    
     log_header "Configuring bootloader (Limine)..."
     
-    local KERNEL_ARGS=""
+    local KERNEL_ARGS="$gpu_args $memory_args"
     local MKINIT_MODULES=""
-
-    # Build Kernel Args
-    if [ $IS_VIRT -eq 0 ]; then
-        if [ "$HAS_AMD_GPU" = true ]; then
-            KERNEL_ARGS="$KERNEL_ARGS radeon.si_support=0 radeon.cik_support=0 amdgpu.si_support=1 amdgpu.cik_support=1"
-        fi
-        if [ "$HAS_NVIDIA_GPU" = true ]; then
-            KERNEL_ARGS="$KERNEL_ARGS nvidia-drm.modeset=1 nvidia-drm.fbdev=1"
-        fi
-    fi
 
     # Build Mkinitcpio Modules
     if [ $IS_VIRT -eq 0 ]; then
         [ "$HAS_INTEL_GPU" = true ] && MKINIT_MODULES="$MKINIT_MODULES i915"
         [ "$HAS_AMD_GPU" = true ] && MKINIT_MODULES="$MKINIT_MODULES amdgpu"
         [ "$HAS_NVIDIA_GPU" = true ] && MKINIT_MODULES="$MKINIT_MODULES nvidia nvidia_modeset nvidia_uvm nvidia_drm"
-    fi
-
-    # Zswap (Temporary location, will move to memory.sh later)
-    if [ "$TOTAL_RAM_GB" -ge 8 ]; then
-        KERNEL_ARGS="$KERNEL_ARGS zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=z3fold zswap.max_pool_percent=25"
-    else
-        KERNEL_ARGS="$KERNEL_ARGS zswap.enabled=1 zswap.compressor=zstd zswap.zpool=z3fold zswap.max_pool_percent=20"
     fi
 
     # Inject into Limine
