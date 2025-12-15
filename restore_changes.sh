@@ -4,6 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/utils/logger.sh"
 source "$SCRIPT_DIR/utils/constants.sh"
+source "$SCRIPT_DIR/utils/restore.sh"
 
 if [[ $EUID -ne 0 ]]; then
    log_error "Must run as root."
@@ -12,22 +13,17 @@ fi
 
 log_header "Omarchy Restoration Utility initialized"
 
-restore_file() {
+restore_interactive() {
     local target="$1"
     local backup="${target}.omarchy-optimizer.bkp"
     
     echo -e "\n${YELLOW}------------------------------------------------------------${NC}"
     log_warn "Target: $target"
     
-    if [ ! -f "$backup" ]; then
-        log_error "No backup history found for this file."
-        return
-    fi
-
-    mapfile -t TIMESTAMPS < <(grep -n "# BACKUP TIMESTAMP:" "$backup")
+    get_backup_timestamps "$backup"
     
-    if [ ${#TIMESTAMPS[@]} -eq 0 ]; then
-        log_error "Backup file is empty or malformed."
+    if [ ${#parsed_timestamps[@]} -eq 0 ]; then
+        log_error "No backup history found."
         return
     fi
 
@@ -36,8 +32,7 @@ restore_file() {
         local count=0
         declare -A LINE_MAP
 
-        # Display Options (Repaint list every loop)
-        for entry in "${TIMESTAMPS[@]}"; do
+        for entry in "${parsed_timestamps[@]}"; do
             count=$((count + 1))
             local line_num="${entry%%:*}"
             local label="${entry#*:}" 
@@ -49,15 +44,13 @@ restore_file() {
 
         log_info "[0] Skip this file"
         echo ""
-        read -p "Select a version [0-$count]: " choice
+        read -p "Select a version to preview [0-$count]: " choice
 
-        # Handle Skip
         if [[ "$choice" -eq 0 || -z "$choice" ]]; then
-            echo "Skipping."
+            log_info "Skipping."
             return
         fi
 
-        # Validate Input
         if [[ -z "${LINE_MAP[$choice]}" ]]; then
             log_error "Invalid selection."
             continue
@@ -72,64 +65,32 @@ restore_file() {
             local next_start="${LINE_MAP[$next_index]}"
             end_line=$((next_start - 3))
         else
-            end_line="$"
+            end_line="$" 
         fi
-
+        
         echo -e "\n${GREEN}--- PREVIEW START ---${NC}"
         sed -n "${content_start},${end_line}p" "$backup"
         echo -e "${GREEN}--- PREVIEW END ---${NC}\n"
 
         read -p "Do you want to restore this version? [y/N] " confirm_restore
-
+        
         if [[ "$confirm_restore" =~ ^[Yy]$ ]]; then
-            log_success "Restoring version..."
-            sed -n "${content_start},${end_line}p" "$backup" > "$target"
-            log_success "✔ Restored $target"
-            break # Exit loop for this loop
-        else
-            log_info "Not restored. You can select another version."
-            # Loop continues, re-displaying the list
+            apply_restore "$backup" "$target" "$content_start" "$end_line"
+            break
         fi
     done
 }
 
 for file in "${RESTORE_TARGETS[@]}"; do
-    restore_file "$file"
+    restore_interactive "$file"
 done
 
-echo -e "\n${YELLOW}------------------------------------------------------------${NC}"
-log_warn "Package Cleanup Advice"
-log_info "The optimizer may have installed specific drivers. Below are the packages"
-log_info "currently installed on your system that match our management list."
-log_info "Please review and uninstall any you no longer need manually."
-log_header "(Command: pacman -Rns <package_name>)\n"
-
-FOUND_PKGS=0
-for pkg in "${MANAGED_PACKAGES[@]}"; do
-    if pacman -Qi "$pkg" &> /dev/null; then
-        echo -e "    • ${GREEN}$pkg${NC} (Installed)"
-        FOUND_PKGS=1
-    fi
-done
-
-if [ $FOUND_PKGS -eq 0 ]; then
-    log_info "(No managed packages detected)"
-fi
+show_cleanup_advice
 
 echo -e "\n${YELLOW}------------------------------------------------------------${NC}"
-read -p "Do you want to rebuild system images (initramfs/bootloader) now? [Y/n] " confirm
-if [[ "$confirm" =~ ^[Yy]$ || -z "$confirm" ]]; then
-    log_header "Running limine-mkinitcpio..."
-    
-    pacman -S --noconfirm linux > /dev/null 2>&1
-    
-    if limine-mkinitcpio; then
-        log_success ":: Rebuild Successful."
-        log_warn ":: Please reboot your system."
-    else
-        log_error ":: Rebuild Failed."
-    fi
+read -p "Do you want to rebuild system images now? [Y/n] " confirm_build
+if [[ "$confirm_build" =~ ^[Yy]$ || -z "$confirm_build" ]]; then
+    run_rebuild
 else
-    log_info "Skipping rebuild."
-    log_info "Remember to run 'sudo limine-mkinitcpio' manually if you changed configs."
+    log_info "Skipping rebuild. Run 'sudo limine-mkinitcpio' manually."
 fi

@@ -3,6 +3,8 @@
 # File Paths
 export LIMINE_CONF="/etc/default/limine"
 export MKINIT_CONF="/etc/mkinitcpio.conf"
+export CPUPOWER_CONF="/etc/default/cpupower"
+export SYSCTL_RAM_CONF="/etc/sysctl.d/99-omarchy-ram.conf"
 
 # Restore Utility Targets
 export RESTORE_TARGETS=("/etc/default/limine" "/etc/mkinitcpio.conf")
