@@ -10,17 +10,17 @@ configure_memory() {
     fi
     log_info "Generated Zswap kernel arguments."
 
-    local swappiness_conf="/etc/sysctl.d/99-omarchy-ram.conf"
+    local sysctl_dir=$(dirname "$SYSCTL_RAM_CONF")
 
-    if [ ! -d "/etc/sysctl.d" ]; then
-        mkdir -p "/etc/sysctl.d"
+    if [ ! -d "$sysctl_dir" ]; then
+        mkdir -p "$sysctl_dir"
     fi
     
     if [ "$TOTAL_RAM_GB" -ge 8 ]; then
-        echo "vm.swappiness=10" > "$swappiness_conf"
+        echo "vm.swappiness=10" > "$SYSCTL_RAM_CONF"
         log_info "Set vm.swappiness=10 (for >8GB RAM)."
     else
-        echo "vm.swappiness=60" > "$swappiness_conf"
+        echo "vm.swappiness=60" > "$SYSCTL_RAM_CONF"
         log_info "Set vm.swappiness=60 (for <8GB RAM)."
     fi
 }
