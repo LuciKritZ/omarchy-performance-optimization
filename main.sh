@@ -9,7 +9,19 @@ source "$SCRIPT_DIR/modules/detect_hardware.sh"
 source "$SCRIPT_DIR/modules/packages.sh"
 source "$SCRIPT_DIR/modules/cpu.sh"
 source "$SCRIPT_DIR/modules/memory.sh"
+source "$SCRIPT_DIR/modules/storage.sh"
 source "$SCRIPT_DIR/modules/bootloader.sh"
+
+cleanup() {
+    echo ""
+    log_error "Execution interrupted by user (Ctrl+C)."
+    log_warn "The optimization process was not completed."
+    log_warn "Your system configuration may be in an inconsistent state."
+    log_header "ACTION REQUIRED: Please run './restore_changes.sh' to review and restore your original settings."
+    exit 1
+}
+
+trap cleanup INT
 
 if [[ $EUID -ne 0 ]]; then
    log_error "Must run as root."
@@ -22,6 +34,7 @@ detect_hardware
 resolve_and_install_packages
 configure_cpu
 configure_memory
+configure_storage
 
 GPU_KERNEL_ARGS=""
 if [ $IS_VIRT -eq 0 ]; then
@@ -35,3 +48,5 @@ fi
 configure_bootloader "$GPU_KERNEL_ARGS" "$MEMORY_KERNEL_ARGS"
 
 build_images
+
+trap - INT
